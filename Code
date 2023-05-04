@@ -1,0 +1,438 @@
+public class User {
+    private String username;
+    private String password;
+    private List<User> following;
+
+    public User(String username, String password) {
+        this.username = username;
+        this.password = password;
+        this.following = new ArrayList<>();
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public boolean checkPassword(String password) {
+        return this.password.equals(password);
+    }
+
+    public void follow(User user) {
+        following.add(user);
+    }
+
+    public void unfollow(User user) {
+        following.remove(user);
+    }
+
+    // Add additional methods for posting, commenting, and voting
+}
+public class FeedItem {
+    private User user;
+    private String text;
+    private LocalDateTime timestamp;
+    private List<Comment> comments;
+    private int upvotes;
+    private int downvotes;
+
+    public FeedItem(User user, String text) {
+        this.user = user;
+        this.text = text;
+        this.timestamp = LocalDateTime.now();
+        this.comments = new ArrayList<>();
+        this.upvotes = 0;
+        this.downvotes = 0;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public String getText() {
+        return text;
+    }
+
+    public LocalDateTime getTimestamp() {
+        return timestamp;
+    }
+
+    public List<Comment> getComments() {
+        return comments;
+    }
+
+    public int getUpvotes() {
+        return upvotes;
+    }
+
+    public int getDownvotes() {
+        return downvotes;
+    }
+
+    public void addComment(User user, String text) {
+        comments.add(new Comment(user, text));
+    }
+
+    public void upvote() {
+        upvotes++;
+    }
+
+    public void downvote() {
+        downvotes++;
+    }
+}
+public class Comment {
+    private User user;
+    private String text;
+    private LocalDateTime timestamp;
+    private int upvotes;
+    private int downvotes;
+
+    public Comment(User user, String text) {
+        this.user = user;
+        this.text = text;
+        this.timestamp = LocalDateTime.now();
+        this.upvotes = 0;
+        this.downvotes = 0;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public String getText() {
+        return text;
+    }
+
+    public LocalDateTime getTimestamp() {
+        return timestamp;
+    }
+
+    public int getUpvotes() {
+        return upvotes;
+    }
+
+    public int getDownvotes() {
+        return downvotes;
+    }
+
+    public void upvote() {
+        upvotes++;
+    }
+
+    public void downvote() {
+        downvotes++;
+    }
+}
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+
+public class SocialNetwork {
+    private List<User> users;
+    private Map<User, List<FeedItem>> feedItems;
+
+    public SocialNetwork() {
+        this.users = new ArrayList<>();
+        this.feedItems = new HashMap<>();
+    }
+
+    public void signup(String username, String password) {
+        users.add(new User(username, password));
+    }
+
+    public User login(String username, String password) {
+        for (User user : users) {
+            if (user.getUsername().equals(username) && user.checkPassword(password)) {
+                return user;
+            }
+        }
+        return null;
+    }
+    
+    public void logout(String username) {
+        if (users.containsKey(username)) {
+            System.out.println("Logout successful!");
+            users.get(username).setLoggedIn(false);
+        } else {
+            System.out.println("Username does not exist.");
+        }
+    }
+
+
+    public void post(User user, String text) {
+        FeedItem feedItem = new FeedItem(user, text);
+        List<FeedItem> userFeed = feedItems.getOrDefault(user, new ArrayList<>());
+        userFeed.add(feedItem);
+        feedItems.put(user, userFeed);
+    }
+
+    public void follow(User follower, User followee) {
+        follower.follow(followee);
+    }
+
+    public void unfollow(User follower, User followee) {
+        follower.unfollow(followee);
+    }
+
+    public void reply(FeedItem feedItem, User user, String text) {
+        feedItem.addComment(user, text);
+    }
+
+    public void upvote(FeedItem feedItem) {
+        feedItem.upvote();
+    }
+
+    public void downvote(FeedItem feedItem) {
+        feedItem.downvote();
+    }
+
+    public void upvote(Comment comment) {
+        comment.upvote();
+    }
+
+    public void downvote(Comment comment) {
+        comment.downvote();
+    }
+
+    public List<FeedItem> getNewsFeed(User user, String sortOption) {
+        List<FeedItem> newsFeed = new ArrayList<>();
+        Set<User> following = new HashSet<>(user.getFollowing());
+        following.add(user);
+
+        for (User followedUser : following) {
+            List<FeedItem> userFeed = feedItems.getOrDefault(followedUser, new ArrayList<>());
+            newsFeed.addAll(userFeed);
+        }
+
+        switch (sortOption) {
+            case "score":
+                newsFeed.sort((a, b) -> Integer.compare(b.getUpvotes() - b.getDownvotes(), a.getUpvotes() - a.getDownvotes()));
+                break;
+            case "comments":
+                newsFeed.sort((a, b) -> Integer.compare(b.getComments().size(), a.getComments().size()));
+                break;
+            case "timestamp":
+                newsFeed.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()));
+                break;
+            default:
+                // sort by following users by default
+                newsFeed.sort((a, b) -> {
+                    boolean aFollowed = following.contains(a.getUser());
+                    boolean bFollowed = following.contains(b.getUser());
+                    if (aFollowed && !bFollowed) {
+                        return -1;
+                    } else if (!aFollowed && bFollowed) {
+                        return 1;
+                    } else {
+                        return b.getTimestamp().compareTo(a.getTimestamp());
+                    }
+                });
+                break;
+        }
+
+        return newsFeed;
+    }
+
+    public static String formatTime(LocalDateTime timestamp) {
+        long seconds = timestamp.until(LocalDateTime.now(), ChronoUnit.SECONDS);
+
+        if (seconds < 60) {
+            return seconds + "s ago";
+        } else if (seconds < 3600) {
+            return (seconds / 60) + "m ago";
+        } else if (seconds < 86400) {
+            return (seconds / 3600) + "h ago";
+        } else {
+            return (seconds / 86400) +"d ago";
+          }
+        }
+
+public static void main(String[] args) {
+    Scanner scanner = new Scanner(System.in);
+    SocialNetwork socialNetwork = new SocialNetwork();
+    User currentUser = null;
+
+    while (true) {
+        System.out.print("> ");
+        String input = scanner.nextLine();
+
+        String[] parts = input.split("\\s+");
+        String command = parts[0];
+
+        try {
+            switch (command) {
+                case "signup":
+                    String username = parts[1];
+                    String password = parts[2];
+                    socialNetwork.signup(username, password);
+                    System.out.println("Signup successful!");
+                    break;
+                case "login":
+                    String usernameLogin = parts[1];
+                    String passwordLogin = parts[2];
+                    User user = socialNetwork.login(usernameLogin, passwordLogin);
+                    if (user == null) {
+                        System.out.println("Invalid username or password.");
+                    } else {
+                        currentUser = user;
+                        System.out.println("Login successful!");
+                    }
+                    break;
+                case "post":
+                    if (currentUser == null) {
+                        System.out.println("You need to login first.");
+                    } else {
+                        String text = String.join(" ", Arrays.copyOfRange(parts, 1, parts.length));
+                        socialNetwork.post(currentUser, text);
+                        System.out.println("Post successful!");
+                    }
+                    break;
+                case "follow":
+                    if (currentUser == null) {
+                        System.out.println("You need to login first.");
+                    } else {
+                        String usernameFollow = parts[1];
+                        User followee = null;
+                        for (User user : socialNetwork.users) {
+                            if (user.getUsername().equals(usernameFollow)) {
+                                followee = user;
+                                break;
+                            }
+                        }
+                        if (followee == null) {
+                            System.out.println("User not found.");
+                        } else if (currentUser.getFollowing().contains(followee)) {
+                            System.out.println("You are already following this user.");
+                        } else {
+                            socialNetwork.follow(currentUser, followee);
+                            System.out.println("You are now following " + followee.getUsername() + ".");
+                        }
+                    }
+                    break;
+                case "unfollow":
+                    if (currentUser == null) {
+                        System.out.println("You need to login first.");
+                    } else {
+                        String usernameUnfollow = parts[1];
+                        User followee = null;
+                        for (User user : socialNetwork.users) {
+                            if (user.getUsername().equals(usernameUnfollow)) {
+                                followee = user;
+                                break;
+                            }
+                        }
+                        if (followee == null) {
+                            System.out.println("User not found.");
+                        } else if (!currentUser.getFollowing().contains(followee)) {
+                            System.out.println("You are not following this user.");
+                        } else {
+                            socialNetwork.unfollow(currentUser, followee);
+                            System.out.println("You have unfollowed " + followee.getUsername() + ".");
+                        }
+                    }
+                    break;
+                case "reply":
+                    if (currentUser == null) {
+                        System.out.println("You need to login first.");
+                    } else {
+                        int feedItemId = Integer.parseInt(parts[1]);
+                        FeedItem feedItem = null;
+                        for (List<FeedItem> userFeed : socialNetwork.feedItems.values()) {
+                            for (FeedItem item : userFeed) {
+                                if (item.getId() == feedItemId) {
+                                    feedItem = item;
+                                    break;
+                                }
+                            }
+                            if (feedItem != null) {
+                                break;
+                            }
+                        }
+                        if (feedItem == null) {
+                            System.out.println("Feed item not found.");
+                        } else {
+                            String text = String.join(" ", Arrays.copyOfRange(parts, 2, parts.length));
+                            socialNetwork.reply(feedItem, currentUser, text);
+                            System.out.println("Feed item found")
+
+                        }
+                    }
+                    break;
+                case "upvote":
+                    if (currentUser == null) {
+                        System.out.println("You need to login first.");
+                    } else {
+                        int feedItemId = Integer.parseInt(parts[1]);
+                        FeedItem feedItem = null;
+                        for (List<FeedItem> userFeed : socialNetwork.feedItems.values()) {
+                            for (FeedItem item : userFeed) {
+                                if (item.getId() == feedItemId) {
+                                    feedItem = item;
+                                    break;
+                                }
+                            }
+                            if (feedItem != null) {
+                                break;
+                            }
+                        }
+                        if (feedItem == null) {
+                            System.out.println("Feed item not found.");
+                        } else {
+                            socialNetwork.upvote(feedItem, currentUser);
+                            System.out.println("Upvote successful!");
+                        }
+                    }
+                    break;
+                case "downvote":
+                    if (currentUser == null) {
+                        System.out.println("You need to login first.");
+                    } else {
+                        int feedItemId = Integer.parseInt(parts[1]);
+                        FeedItem feedItem = null;
+                        for (List<FeedItem> userFeed : socialNetwork.feedItems.values()) {
+                            for (FeedItem item : userFeed) {
+                                if (item.getId() == feedItemId) {
+                                    feedItem = item;
+                                    break;
+                                }
+                            }
+                            if (feedItem != null) {
+                                break;
+                            }
+                        }
+                        if (feedItem == null) {
+                            System.out.println("Feed item not found.");
+                        } else {
+                            socialNetwork.downvote(feedItem, currentUser);
+                            System.out.println("Downvote successful!");
+                        }
+                    }
+                    break;
+                case "shownewsfeed":
+                    if (currentUser == null) {
+                        System.out.println("You need to login first.");
+                    } else {
+                        String sortBy = null;
+                        if (parts.length > 1) {
+                            sortBy = parts[1];
+                        }
+                        List<FeedItem> newsFeed = socialNetwork.getNewsFeed(currentUser, sortBy);
+                        System.out.println("News feed:");
+                        for (FeedItem feedItem : newsFeed) {
+                            System.out.println(feedItem.toString());
+                        }
+                    }
+                    break;
+                case "exit":
+                    System.out.println("Exiting program...");
+                    System.exit(0);
+                    break;
+                default:
+                    System.out.println("Invalid command.");
+                    break;
+            }
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+}
